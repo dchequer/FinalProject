@@ -6,20 +6,31 @@
  *  Author: Diego
  */ 
 
-.section ".data"					
-.equ	DDRB,0x04					
-.equ	DDRD,0x0A					
-.equ	PORTB,0x05					
-.equ	PORTD,0x0B					
+.section ".data"	
+// Data Direction Ports for Port B and D				
+.equ	DDRB,0x04	// 0b00000100	
+.equ 	DDRC,0x07	// 0b00000111
+.equ	DDRD,0x0A	// 0b00001010
+
+// Data Ports for Port B and D
+.equ	PORTB,0x05		// 0b00000101
+.equ	PORTC,0x08		// 0b00001000
+.equ	PORTD,0x0B		// 0b00001011
+
+// USART0 Registers
 .equ	U2X0,1						
 .equ	UBRR0L,0xC4					
 .equ	UBRR0H,0xC5					
 .equ	UCSR0A,0xC0					
 .equ	UCSR0B,0xC1					
 .equ	UCSR0C,0xC2					
-.equ	UDR0,0xC6					
+.equ	UDR0,0xC6	
+
+// USART0 Flags
 .equ	RXC0,0x07					
-.equ	UDRE0,0x05					
+.equ	UDRE0,0x05	
+
+// ADC Registers and flags
 .equ	ADCSRA,0x7A					
 .equ	ADMUX,0x7C					
 .equ	ADCSRB,0x7B					
@@ -28,7 +39,9 @@
 .equ	ADSC,6						
 .equ	ADIF,4						
 .equ	ADCL,0x78					
-.equ	ADCH,0x79					
+.equ	ADCH,0x79	
+
+// EEPROM Registers and flags
 .equ	EECR,0x1F					
 .equ	EEDR,0x20					
 .equ	EEARL,0x21					
@@ -38,10 +51,17 @@
 .equ	EEMPE,2						
 .equ	EERIE,3						
 
-.global HADC				
-.global LADC				
+// USS Pins
+.equ TRIG_PIN = 1 	// PC1 => second pin on port C
+.equ ECHO_PIN = 2	// PC2 => third pin on port C
+
+
+.global HADC	// High byte of ADC value		
+.global LADC	// Low byte of ADC value
 .global ASCII				
-.global DATA				
+.global DATA	// asm and C shared variable			
+
+
 
 .set	temp,0				
 
@@ -50,35 +70,39 @@
 Mega328P_Init:
 		//***********************************************
 		//initialize PB0(R*W),PB1(RS),PB2(E) as fixed cleared outputs
-		ldi	r16,0x07		
+		ldi	r16,0x07		// 0b00000111
 		out	DDRB,r16		
-		ldi	r16,0			
+		ldi	r16,0			// 0b00000000
 		out	PORTB,r16		
 		//***********************************************
 		//initialize UART, 8bits, no parity, 1 stop, 9600
-		out	U2X0,r16		
+		out	U2X0,r16		// 0b00000000	
 		ldi	r17,0x0			
 		ldi	r16,0x67		
-		sts	UBRR0H,r17		
-		sts	UBRR0L,r16		
+		sts	UBRR0H,r17		// 0b00000000
+		sts	UBRR0L,r16		// 0b01100111
 		ldi	r16,24			
-		sts	UCSR0B,r16		
+		sts	UCSR0B,r16		// 0b00011000
 		ldi	r16,6			
-		sts	UCSR0C,r16		
+		sts	UCSR0C,r16		// 0b00000110
 		//************************************************
 		//initialize ADC
 		ldi r16,0x87		
-		sts	ADCSRA,r16		
+		sts	ADCSRA,r16		// 0b10000111
 		ldi r16,0x40		
-		sts ADMUX,r16		
+		sts ADMUX,r16		// 0b01000000
 		ldi r16,0			
-		sts ADCSRB,r16		
+		sts ADCSRB,r16		// 0b00000000
 		ldi r16,0xFE		
-		sts DIDR0,r16		
+		sts DIDR0,r16		// 0b11111110
 		ldi r16,0xFF		
-		sts DIDR1,r16		
+		sts DIDR1,r16		// 0b11111111
 		//************************************************
-		ret					
+		//initialize PC1 as output for trigger and PC2 and input for echo
+		ldi r16, 0x02		// 0b00000010 
+		out DDRC, r16
+		ldi r16, 0x00		// 0b00000000
+		out PORTC, r16		// set all pins to low
 	
 .global LCD_Write_Command
 LCD_Write_Command:
@@ -186,3 +210,6 @@ A2V1:	lds		r16,ADCSRA
 		sts		HADC,r16			
 		ret							
 
+.global USS_Get
+USS_Get:
+	

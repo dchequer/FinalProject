@@ -7,25 +7,19 @@
 #define F_CPU 16000000
 
 // sonic sensor pins
-#define TRIGGER_PIN = 0x0;
-#define ECHO_PIN = 0x1;
-#define MAX_CM_DIST = 10;
-
-// lcd pins
-#define RS_PIN = 0x2;
-#define RW_PIN = 0x3;
-#define ENABLE_PIN = 0x4;
-
+#define TRIGGER_PIN PC1;
+#define ECHO_PIN PC2;
+#define MAX_CM_DIST 10;
 
 
 #include <avr/io.h>
 #include <math.h>
 #include <stdio.h>
 #include <util/delay.h>
-#include "NewPing.cpp"
 
 const char MenuMSG[] = "\r\nMenu: (L)CD, (A)DC\n\r";
 const char InvalidCommandMSG[] = "\r\nInvalid Command Try Again...";
+const char BannerMSG[] = "\r\nFinal Project - Diego, Jenerth, Roxana\n\r";
 
 void LCD_Init(void);			//external Assembly functions
 void UART_Init(void);
@@ -46,7 +40,13 @@ char LADC;						//shared ADC variable with Assembly
 char volts[5];					//string buffer for ADC output
 int Acc;						//Accumulator for ADC use
 
-void UART_Puts(const char *str)				//Display a string in the PC Terminal Program
+void Banner(void)				// Display the Banner
+{
+	LCD_Puts(BannerMSG);
+	return;
+}
+
+void UART_Puts(const char *str)				// Display a string in the PC Terminal Program
 {
 	while (*str)
 	{
@@ -55,7 +55,7 @@ void UART_Puts(const char *str)				//Display a string in the PC Terminal Program
 	}
 }
 
-void LCD_Puts(const char *str)				//Display a string on the LCD Module
+void LCD_Puts(const char *str)				// Display a string on the LCD Module
 {
 	while (*str)
 	{
@@ -64,10 +64,9 @@ void LCD_Puts(const char *str)				//Display a string on the LCD Module
 	}
 }
 
-void LCD(void)								//LCD Display
+void LCD(void)								// LCD Display
 {
 	int x = 100;
-	int i = 0;
 	DATA = 0x34;					
 	LCD_Write_Command();
 	DATA = 0x08;					
@@ -125,6 +124,46 @@ void ADC(void)								// take in adc value and convert to temp
 	UART_Puts(volts);
 }
 
+/* already doing in assembly
+void HCSR04_init(void){
+	DDRC |= (1 << TRIGGER_PIN); // set PC1 as output
+	DDRC &= ~(1 << ECHO_PIN);	// Set PC2 as input
+}
+*/
+
+int pingDistance(void)
+{
+	// Send a 10us pulse on the Trig pin
+	PORTC |= (1 << TRIGGER_PIN);
+	_delay_us(10);
+	PORTC &= ~(1 << TRIGGER_PIN);
+
+	// Wait for the Echo pin to go high
+	while (!(PINC & (1 << ECHO_PIN)));
+
+	// Measure the time the Echo pin stays high
+	int count = 0;
+	while (PINC & (1 << ECHO_PIN)) {
+		count++;
+		_delay_us(1);
+	}
+
+	return count;
+}
+
+void USS(void){
+	int dist = pingDistance();
+	char distAsStr[10]; // buffer to store distance as string
+
+	sprintf(distAsStr, "%d cm\n", dist); // actually convert to string
+	
+	//display to both UART and LCD
+	UART_Puts(distAsStr);
+	LCD_Puts(distAsStr);
+	
+	return;
+}
+
 void Command(void)							// command interpreter
 {
 	UART_Puts(MenuMSG);
@@ -139,15 +178,22 @@ void Command(void)							// command interpreter
 		break;
 		case 'A' | 'a': ADC();
 		break;
+		case 'P' | 'p': USS();
+		break;
 		default: UART_Puts(InvalidCommandMSG);
 		break;
 		
 	}
 }
 
+
 int main(void)
 {
-	NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_CM_DIST);
+	Banner();
+	
+	while (1){
+		Command();
+	}
 	
 }
 
