@@ -7,9 +7,9 @@
 #define F_CPU 16000000
 
 // sonic sensor pins
-#define TRIGGER_PIN PC1;
-#define ECHO_PIN PC2;
-#define MAX_CM_DIST 10;
+#define TRIGGER_PIN PC1
+#define ECHO_PIN PC2
+#define MAX_CM_DIST 10
 
 
 #include <avr/io.h>
@@ -21,15 +21,16 @@ const char MenuMSG[] = "\r\nMenu: (L)CD, (A)DC\n\r";
 const char InvalidCommandMSG[] = "\r\nInvalid Command Try Again...";
 const char BannerMSG[] = "\r\nFinal Project - Diego, Jenerth, Roxana\n\r";
 
-void LCD_Init(void);			//external Assembly functions
-void UART_Init(void);
+//external Assembly functions
+void Mega328P_Init(void);
+//void LCD_Init(void);			
+//void UART_Init(void);
 void UART_Clear(void);
 void UART_Get(void);
 void UART_Put(void);
 void LCD_Write_Data(void);
 void LCD_Write_Command(void);
 void LCD_Read_Data(void);
-void Mega328P_Init(void);
 void ADC_Get(void);
 
 unsigned char ASCII;			//shared I/O variable with Assembly
@@ -40,11 +41,7 @@ char LADC;						//shared ADC variable with Assembly
 char volts[5];					//string buffer for ADC output
 int Acc;						//Accumulator for ADC use
 
-void Banner(void)				// Display the Banner
-{
-	LCD_Puts(BannerMSG);
-	return;
-}
+
 
 void UART_Puts(const char *str)				// Display a string in the PC Terminal Program
 {
@@ -112,7 +109,7 @@ float calculateTemperature(int adcValue)	// helper function to calculate tempera
 	return temperature;
 }
 
-void ADC(void)								// take in adc value and convert to temp
+void ADConverter(void)								// take in adc value and convert to temp
 {	
 	int adcValue = (HADC << 8) | LADC;
 	
@@ -131,7 +128,7 @@ void HCSR04_init(void){
 }
 */
 
-int pingDistance(void)
+int pingDistance(void)						// helper function to time trigger ping and return distance
 {
 	// Send a 10us pulse on the Trig pin
 	PORTC |= (1 << TRIGGER_PIN);
@@ -164,6 +161,12 @@ void USS(void){
 	return;
 }
 
+void Banner(void)							// Display the Banner
+{
+	LCD_Puts(BannerMSG);
+	return;
+}
+
 void Command(void)							// command interpreter
 {
 	UART_Puts(MenuMSG);
@@ -176,7 +179,7 @@ void Command(void)							// command interpreter
 	{
 		case 'L' | 'l': LCD();
 		break;
-		case 'A' | 'a': ADC();
+		case 'A' | 'a': ADConverter();
 		break;
 		case 'P' | 'p': USS();
 		break;

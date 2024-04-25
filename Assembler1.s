@@ -52,8 +52,8 @@
 .equ	EERIE,3						
 
 // USS Pins
-.equ TRIG_PIN = 1 	// PC1 => second pin on port C
-.equ ECHO_PIN = 2	// PC2 => third pin on port C
+.equ TRIGGER_PIN, 1 	// PC1 => second pin on port C
+.equ ECHO_PIN, 2		// PC2 => third pin on port C
 
 
 .global HADC	// High byte of ADC value		
@@ -210,6 +210,4 @@ A2V1:	lds		r16,ADCSRA
 		sts		HADC,r16			
 		ret							
 
-.global USS_Get
-USS_Get:
-	
+.end
