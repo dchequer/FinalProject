@@ -103,7 +103,8 @@ Mega328P_Init:
 		out DDRC, r16
 		ldi r16, 0x00		// 0b00000000
 		out PORTC, r16		// set all pins to low
-	
+		//************************************************
+
 .global LCD_Write_Command
 LCD_Write_Command:
 	call	UART_Off		
