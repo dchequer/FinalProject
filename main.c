@@ -148,7 +148,7 @@ void LCD_Puts(const char *str)				// Display a string on the LCD Module
 
 void LCD(void)								// LCD Display
 {
-	DATA = 0x38;					// 8 bit 1 line 
+	DATA = 0x38;					// 8 bit 2 line 
 	LCD_Write_Command();
 	
 	DATA = 0x0E;					// display cursor on 
@@ -232,8 +232,12 @@ float pingDistance(void)						// helper function to time trigger ping and return
 	
 	// Calculate distance using speed of sound (34300 cm/s) and accounting for return trip
 	float distance = time * 34300.0 / 2.0;	// distance in cm
-
-	UART_Puts("distance calculated\n\r");
+	
+	// output time passed in uart
+	char buff[28];
+	sprintf(buff, "Time passed: %d ms \n\r", (int) (time*1000));
+	UART_Puts(buff);
+	UART_Puts("distance calculated \n\r");
 	return distance;
 }
 
@@ -241,7 +245,7 @@ void USS(void){
 	float distance = pingDistance();
 	
 	char buff[28]; // buffer to store distance as string
-	sprintf(buff, "distance = %d cm\n", (int) distance); // actually convert to string
+	sprintf(buff, "distance = %d m\n", (int) (distance / 100.0)); // meters
 	
 	//display to both UART and LCD
 	UART_Puts(buff);
