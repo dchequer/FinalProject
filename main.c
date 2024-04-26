@@ -4,12 +4,12 @@
  * Created: 4/23/2024 8:18:56 PM
  * Author : Diego
  */ 
-#define F_CPU 16000000 // in hz
+#define F_CPU 16000000.0 // in hz
 
 // sonic sensor pins
 #define TRIGGER_PIN PC1
 #define ECHO_PIN PC2
-#define MAX_TIMEOUT 3000000
+#define MAX_TIMEOUT 3000000.0
 
 
 #include <avr/io.h>
@@ -55,17 +55,21 @@ void USS(void);
 void Banner(void);
 void Command(void);
 
-int getPrescaler(){
+float volatile prescaler;
+/*
+float getPrescaler(){
 	int prescalerBits = TCCR1B & 0x7;	// mask last three bits
 	switch (prescalerBits){
-		case 0x1: return 1;
-		case 0x2: return 8;
-		case 0x3: return 64;
-		case 0x4: return 256;
-		case 0x5: return 1024;
-		default: return 0;				// error in prescaler bits
+		case 0x1: return 1.0;
+		case 0x2: return 8.0;
+		case 0x3: return 64.0;
+		case 0x4: return 256.0;
+		case 0x5: return 1024.0;
+		default: return 0.0;			// error in prescaler bits
 	}
+	
 }
+*/
 
 void Timer1(float us){
 	us *= pow(10, -6);		// adjust us to microseconds
@@ -78,6 +82,7 @@ void Timer1(float us){
     //find the best prescaler value
     for (i = 0; i < 5; i++){
 		if (C - (F_CPU * us)/prescalers[i] >= 0){
+			prescaler = prescalers[i];
 			break;
 		}
     }
@@ -99,6 +104,7 @@ void Timer1(float us){
 	PCICR = (1 << PCIE1);
 	PCMSK1 = (1 << ECHO_PIN);
 	
+	while (TCCR1B != 0x0);	// wait for timer to finish
 	return;
 }
 
@@ -108,6 +114,8 @@ ISR(PCINT1_vect){
     if (!(PINC & (1 << ECHO_PIN))){	// if ECHO pin is low
         UART_Puts("AND ECHO WENT LOW \n\r");
         TCCR1B = 0x0; // stop the timer
+		//disable echo pin change interrupt
+		PCICR &= ~(1 << PCIE1);
     }
 }
 
@@ -220,20 +228,20 @@ float pingDistance(void)						// helper function to time trigger ping and return
 	Timer1(MAX_TIMEOUT); // timeout/overflow value
 	
 	// Calculate time passed
-	float time = (TCNT1 * getPrescaler()) / F_CPU; 	// time in seconds
-
+	float time = (TCNT1 * prescaler) / F_CPU; 	// time in seconds
+	
 	// Calculate distance using speed of sound (34300 cm/s) and accounting for return trip
-	float distance = time * 34300 / 2;	// distance in cm
+	float distance = time * 34300.0 / 2.0;	// distance in cm
 
 	UART_Puts("distance calculated\n\r");
 	return distance;
 }
 
 void USS(void){
-	int distance = (int)pingDistance();
+	float distance = pingDistance();
+	
 	char buff[28]; // buffer to store distance as string
-
-	sprintf(buff, "distance = %d cm\n", distance); // actually convert to string
+	sprintf(buff, "distance = %d cm\n", (int) distance); // actually convert to string
 	
 	//display to both UART and LCD
 	UART_Puts(buff);
