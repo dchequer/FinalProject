@@ -42,7 +42,8 @@ char volts[5]; // string buffer for ADC output
 int Acc;	   // Accumulator for ADC use
 
 // function prototypes
-void Timer0(double us);
+void resetTimer1(void);
+void Timer1(float us);
 void UART_Puts(const char *str);
 void LCD_Puts(const char *str);
 void LCD(void);
@@ -54,40 +55,24 @@ void USS(void);
 void Banner(void);
 void Command(void);
 
-float volatile prescaler;
-/*
-float getPrescaler(){
-	int prescalerBits = TCCR1B & 0x7;	// mask last three bits
-	switch (prescalerBits){
-		case 0x1: return 1.0;
-		case 0x2: return 8.0;
-		case 0x3: return 64.0;
-		case 0x4: return 256.0;
-		case 0x5: return 1024.0;
-		default: return 0.0;			// error in prescaler bits
-	}
-
-}
-*/
+float volatile prescaler = 1;
 
 void resetTimer1(void)
 {
 	// stop timer
 	TCCR1B = 0x0;
 	// disable timer overflow interrupt
-	TIMSK1 &= ~(1 << TOIE1);
+	//TIMSK1 &= ~(1 << TOIE1);
 	// disable pin change interrupt for ECHO pin
-	PCICR &= ~(1 << PCIE1);
+	//PCICR &= ~(1 << PCIE1);
 
 	return;
 }
 
 void Timer1(float us)
 {
-	float s = us * pow(10, -6); // adjust us to microseconds
-
-	int timerBits = 16;
-	float C = pow(2, timerBits);
+	// not necessary to calculate prescaler, distances are so small that the timer will not overflow up to 70cm
+	/*
 	// allowed prescaler values
 	float prescalers[] = {1.0, 8.0, 64.0, 256.0, 1024.0};
 	int i;
@@ -101,15 +86,19 @@ void Timer1(float us)
 		}
 	}
 
-	// calculate timer count
-	float timerCount = C - (F_CPU * s) / prescalers[i];
+	*/
+	int timerBits = 16;
+	float C = pow(2, timerBits);
+	float s = us / 1000000.0;	 // adjust us to seconds
+	
+	float timerCount = C - ((F_CPU * s) / prescaler); // calculate timer count
 
 	// set timer count in register
-	TCNT1 = 0;
+	TCNT1 = timerCount;
 
 	// set TCCR1A and TCCR1B registers for normal mode and prescaler
 	TCCR1A = 0x0;	// normal mode
-	TCCR1B = i + 1; // prescaler bits
+	TCCR1B = 1; 	// prescaler bits (i + 1) if prescaler
 
 	// enable timer overflow interrupt
 	TIMSK1 = (1 << TOIE1);
@@ -118,24 +107,22 @@ void Timer1(float us)
 	PCICR = (1 << PCIE1);
 	PCMSK1 = (1 << ECHO_PIN);
 
-	while (TCCR1B != 0x0)
-	{	
-		UART_Puts("delaying...");
-		// delay 10 us
+	while (TCCR1B != 0x0){
+		//delay 10us
 		_delay_us(10);
-		// manually trigger pin change interrupt
-		PCIFR = (1 << PCIF1);
-	} // wait for timer to finish
+		// manually raise interrupt flag
+		TIFR1 |= (1 << TOV1); // should trigger overflow interrupt
+	};	// wait for timer to finish
 	return;
 }
 
 // Timer1 interrupt for ECHO pinF
 ISR(PCINT1_vect)
 {
-	UART_Puts("echo interrupt \n\r");
+	//UART_Puts("echo interrupt \n\r");
 	if (!(PINC & (1 << ECHO_PIN)))
 	{ // if ECHO pin is low
-		UART_Puts("AND ECHO WENT LOW \n\r");
+		//UART_Puts("AND ECHO WENT LOW \n\r");
 		resetTimer1();
 	}
 }
@@ -143,7 +130,7 @@ ISR(PCINT1_vect)
 // Timer1 overflow interrupt
 ISR(TIMER1_OVF_vect)
 {
-	UART_Puts("overflow interrupt \n\r");
+	//UART_Puts("overflow interrupt \n\r");
 	resetTimer1();
 }
 
@@ -238,7 +225,7 @@ void HCSR04_init(void){
 
 float pingDistance(void) // helper function to time trigger ping and return distance
 {
-	UART_Puts("starting trigger ping\n\r");
+	//UART_Puts("starting trigger ping\n\r");
 	// Send a 10us pulse on the Trig pin
 	PORTC |= (1 << TRIGGER_PIN);
 	_delay_us(10);
@@ -248,30 +235,31 @@ float pingDistance(void) // helper function to time trigger ping and return dist
 	Timer1(MAX_TIMEOUT); // timeout/overflow value
 
 	// Calculate time passed
-	float timeMS = ((TCNT1 * prescaler) / F_CPU) * 1000.0; // time in ms
+	float timeS = ((TCNT1 * prescaler) / F_CPU); // time in s
 
 	// Calculate distance using speed of sound (343 m/s) and accounting for return trip
-	float distanceCM = (timeMS * 343.0 / 2.0) / 100.0; // distance in cm
+	float distanceM = (timeS * 343.0 / 2.0); // distance in m
 
 	// debug outputs
 	char buff[28];
-	sprintf(buff, "Time passed: %d us \n\rPrescaler: %d \n\r", (int)(timeMS * 100.0), (int)prescaler); // time passed in microseconds
+	sprintf(buff, "Time passed: %d us \n\rTCNT1: high: %x low:%x \n\r", (int)(timeS * 1000000.0), (int)TCNT1H, (int)TCNT1L); // time passed in microseconds
 	UART_Puts(buff);
 	UART_Puts("distance calculated \n\r");
-	return distanceCM;
+	
+	return distanceM;
 }
 
 void USS(void)
 {
-	float distance = pingDistance();
+	float distanceM = pingDistance();
 
 	char buff[28];										// buffer to store distance as string
-	sprintf(buff, "distance = %d cm\n", (int)distance); // meters
+	sprintf(buff, "distance = %d cm \n\r", (int)(distanceM * 100.0)); // cm
 
 	// display to both UART and LCD
 	UART_Puts(buff);
 	LCD_Puts(buff);
-
+	
 	return;
 }
 
