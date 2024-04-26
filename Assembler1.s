@@ -99,6 +99,7 @@ Mega328P_Init:
 		sts DIDR1,r16		// 0b11111111
 		//************************************************
 		//initialize PC1 as output for trigger and PC2 and input for echo
+		/*
 		; Initialize PC1 as output for trigger
 		ldi r16, (1<<1)  ; Load register r16 with the bit mask for PC1
 		out DDRC, r16    ; Set PC1 as output
@@ -112,6 +113,11 @@ Mega328P_Init:
 		; Set all pins to low
 		ldi r16, 0x00    ; Load register r16 with 0
 		out PORTC, r16   ; Set all pins to low
+		*/
+		ldi r16, 0x02 	// 0b00000010
+		out DDRC, r16
+		ldi r16, 0x00	// 0b00000000
+		out PORTC, r16
 		//************************************************
 
 .global LCD_Write_Command
